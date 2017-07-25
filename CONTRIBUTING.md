@@ -1,5 +1,5 @@
 
-:+1::tada: First off, thanks for taking the time to contribute! It's people like you that make usrp_spectrum_sense such a great tool.:tada::+1:
+:+1::tada: First off, thanks for taking the time to contribute! It's people like you that make this such a great tool.:tada::+1:
 
 Following these guidelines helps to communicate that you respect the time of the developers managing and developing this open source project. In return, they should reciprocate that respect in addressing your issue, assessing changes, and helping you finalize your pull requests.
 
