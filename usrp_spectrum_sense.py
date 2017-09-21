@@ -100,24 +100,24 @@ class my_top_block(gr.top_block):
 
         usage = "usage: %prog [options] min_freq max_freq"
         parser = OptionParser(option_class=eng_option, usage=usage)
-        parser.add_option("-a", "--args", type="string", default="",
+        parser.add_option("-a", "--args", type="string", default="192.168.10.2",
                           help="UHD device device address args [default=%default]")
         parser.add_option("", "--spec", type="string", default=None,
 	                  help="Subdevice of UHD device where appropriate")
-        parser.add_option("-A", "--antenna", type="string", default=None,
+        parser.add_option("-A", "--antenna", type="string", default='RX2',
                           help="select Rx Antenna where appropriate")
         parser.add_option("-s", "--samp-rate", type="eng_float", default=1e6,
                           help="set sample rate [default=%default]")
         parser.add_option("-g", "--gain", type="eng_float", default=None,
                           help="set gain in dB (default is midpoint)")
         parser.add_option("", "--tune-delay", type="eng_float",
-                          default=0.25, metavar="SECS",
+                          default=4.1e-5, metavar="SECS",
                           help="time to delay (in seconds) after changing frequency [default=%default]")
         parser.add_option("", "--dwell-delay", type="eng_float",
-                          default=0.25, metavar="SECS",
+                          default=4.096e-5, metavar="SECS",
                           help="time to dwell (in seconds) at a given frequency [default=%default]")
         parser.add_option("-b", "--channel-bandwidth", type="eng_float",
-                          default=6.25e3, metavar="Hz",
+                          default=976.5625, metavar="Hz",
                           help="channel bandwidth of fft bins in Hz [default=%default]")
         parser.add_option("-l", "--lo-offset", type="eng_float",
                           default=0, metavar="Hz",
@@ -125,9 +125,9 @@ class my_top_block(gr.top_block):
         parser.add_option("-q", "--squelch-threshold", type="eng_float",
                           default=None, metavar="dB",
                           help="squelch threshold in dB [default=%default]")
-        parser.add_option("-F", "--fft-size", type="int", default=None,
-                          help="specify number of FFT bins [default=samp_rate/channel_bw]")
-        parser.add_option("", "--real-time", action="store_true", default=False,
+        parser.add_option("-F", "--fft-size", type="int", default=1024,
+                          help="specify number of FFT bins [default=%default]")
+        parser.add_option("", "--real-time", action="store_true", default=True,
                           help="Attempt to enable real-time scheduling")
 
         (options, args) = parser.parse_args()
@@ -240,6 +240,7 @@ class my_top_block(gr.top_block):
     def set_freq(self, target_freq):
         """
         Set the center frequency we're interested in.
+
         Args:
             target_freq: frequency in Hz
         @rypte: bool
@@ -273,6 +274,11 @@ def main_loop(tb):
 
     timestamp = 0
     centerfreq = 0
+
+    rawFile = open('rawData', 'w'+'a')
+    scanrateFile = open('scanrateData', 'w'+'a')
+    processedFile = open('processedData', 'w'+'a')
+
     while 1:
 
         # Get the next message sent from the C++ code (blocking call).
@@ -283,13 +289,18 @@ def main_loop(tb):
         # m.data are the mag_squared of the fft output
         # m.raw_data is a string that contains the binary floats.
         # You could write this as binary to a file.
+        #to convert to strng or float, float() string()
+
+	
+        
+        rawFile.write(str(time.time()) + " " + str(m.center_freq) + "[" +str(m.data)+ "]\n")
 
         # Scanning rate
         if timestamp == 0:
             timestamp = time.time()
             centerfreq = m.center_freq
         if m.center_freq < centerfreq:
-            sys.stderr.write("scanned %.1fMHz in %.1fs\n" % ((centerfreq - m.center_freq)/1.0e6, time.time() - timestamp))
+            scanrateFile.write("scanned %.1fMHz in %.1fs\n" % ((centerfreq - m.center_freq)/1.0e6, time.time() - timestamp))
             timestamp = time.time()
         centerfreq = m.center_freq
 
@@ -300,9 +311,10 @@ def main_loop(tb):
             #noise_floor_db = -174 + 10*math.log10(tb.channel_bandwidth)
             noise_floor_db = 10*math.log10(min(m.data)/tb.usrp_rate)
             power_db = 10*math.log10(m.data[i_bin]/tb.usrp_rate) - noise_floor_db
+            threshold = 10 + noise_floor_db
 
-            if (power_db > tb.squelch_threshold) and (freq >= tb.min_freq) and (freq <= tb.max_freq):
-                print datetime.now(), "center_freq", center_freq, "freq", freq, "power_db", power_db, "noise_floor_db", noise_floor_db
+            if (power_db > threshold) and (freq >= tb.min_freq) and (freq <= tb.max_freq):
+                processedFile.write( str(time.time()) + " " + str(center_freq) + " " + str(freq) + " " + str(power_db)  + " " +str(noise_floor_db) + " " + str(threshold) + "\n")
 
 if __name__ == '__main__':
     t = ThreadClass()
